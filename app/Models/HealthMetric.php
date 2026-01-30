@@ -13,6 +13,7 @@ class HealthMetric extends Model
         'user_id',
         'metric_type', 
         'value',
+        'unit',
         'additional_data',
         'recorded_at'
     ];
