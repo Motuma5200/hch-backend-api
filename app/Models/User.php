@@ -21,6 +21,11 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'organisation',
+        'approved',
+        'id_document',
+        'hospital_id',
     ];
 
     /**
@@ -43,26 +48,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             // 'password' => 'hashed',   ← comment out or remove this line
+            'approved' => 'boolean',
         ];
     }
 
-    /**
-     * Prevent Laravel from automatically hashing the password attribute.
-     * This allows plain-text passwords to be stored directly.
-     */
-    public function setPasswordAttribute($value)
-    {
-        // Store exactly what was given (no hashing)
-        $this->attributes['password'] = $value;
-    }
-
-    /**
-     * Tell Laravel's authentication system to use the plain-text value
-     * when checking passwords during login (Auth::attempt).
-     */
-    public function getAuthPassword()
-    {
-        // Return the raw value stored in the database
-        return $this->attributes['password'] ?? null;
-    }
 }
