@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\ChatMessage;
 
 class User extends Authenticatable
 {
@@ -24,6 +25,8 @@ class User extends Authenticatable
         'role',
         'organisation',
         'approved',
+        'bio',
+        'specialization',
         'id_document',
         'hospital_id',
     ];
@@ -52,4 +55,13 @@ class User extends Authenticatable
         ];
     }
 
+    public function sentMessages()
+    {
+        return $this->hasMany(ChatMessage::class, 'user_id');
+    }
+
+    public function receivedMessages()
+    {
+        return $this->hasMany(ChatMessage::class, 'doctor_id');
+    }
 }

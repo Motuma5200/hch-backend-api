@@ -8,6 +8,9 @@ use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
 use App\Http\Controllers\Api\HealthMetricController;
 use App\Http\Controllers\Api\SymptomController;
 use App\Http\Controllers\Api\PharmacyDrugController;
+use App\Http\Controllers\Api\ChatController;
+use App\Http\Controllers\Api\DoctorController;
+
 Route::post('/register', [AuthController::class, 'register']);
 
 // Symptom endpoints
@@ -76,6 +79,19 @@ Route::middleware('auth:sanctum')->get('/health/history', [HealthMetricControlle
 Route::get('/health/history/test', [HealthMetricController::class, 'historyTest']);
 // Temporary test status endpoint (no auth)
 Route::get('/health/status/test', [HealthMetricController::class, 'statusTest']);
+
+// Chat endpoints
+Route::middleware('auth:sanctum')->get('/doctors', [ChatController::class, 'getDoctors']);
+Route::middleware('auth:sanctum')->get('/chat/messages/{doctorId}', [ChatController::class, 'getChatMessages']);
+Route::middleware('auth:sanctum')->post('/chat/messages/{doctorId}', [ChatController::class, 'sendChatMessage']);
+Route::middleware('auth:sanctum')->post('/chat/doctor/messages/{userId}', [ChatController::class, 'sendDoctorMessage']);
+Route::middleware('auth:sanctum')->get('/chat/clients', [ChatController::class, 'getClients']);
+
+// Doctor profile & advices
+Route::middleware('auth:sanctum')->get('/doctors/{id}', [DoctorController::class, 'show']);
+Route::middleware('auth:sanctum')->put('/doctors/{id}', [DoctorController::class, 'update']);
+Route::middleware('auth:sanctum')->get('/doctors/{id}/advices', [DoctorController::class, 'advices']);
+Route::middleware('auth:sanctum')->post('/doctors/{id}/advices', [DoctorController::class, 'storeAdvice']);
 
 // Respond to preflight OPTIONS requests for API routes to avoid 405 Method Not Allowed
 Route::options('{any}', function () {
