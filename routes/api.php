@@ -97,3 +97,6 @@ Route::middleware('auth:sanctum')->post('/doctors/{id}/advices', [DoctorControll
 Route::options('{any}', function () {
 	return response()->json([], 200);
 })->where('any', '.*');
+
+
+Route::get('/hospitals', [HospitalController::class, 'index']);
