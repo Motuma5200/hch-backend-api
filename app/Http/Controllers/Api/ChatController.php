@@ -16,7 +16,6 @@ class ChatController extends Controller
             ->select('id', 'name', 'organisation', 'hospital_id')
             ->get();
 
-        // Add specialization if needed, for now use organisation or default
         $doctors = $doctors->map(function ($doctor) {
             $doctor->specialization = $doctor->organisation ?: 'General Practitioner';
             return $doctor;
@@ -27,12 +26,10 @@ class ChatController extends Controller
 
     public function getClients()
     {
-        // Only doctors can access this
         if (auth()->user()->role !== 'doctor') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        // Get users (clients) who have chatted with this doctor
         $clients = User::where('role', '!=', 'doctor')
             ->where(function ($query) {
                 $query->whereHas('sentMessages', function ($query) {
@@ -53,9 +50,6 @@ class ChatController extends Controller
     {
         $user = auth()->user();
 
-        // Frontend uses this endpoint for both clients and doctors.
-        // - Clients call with doctorId (param is doctor)
-        // - Doctors call with clientId (param is client)
         if ($user->role === 'doctor') {
             $doctorId = $user->id;
             $userId = $otherUserId;
@@ -80,7 +74,6 @@ class ChatController extends Controller
 
         $userId = auth()->id();
 
-        // Verify doctor exists and is approved
         $doctor = User::where('id', $doctorId)
             ->where('role', 'doctor')
             ->where('approved', true)
@@ -108,13 +101,11 @@ class ChatController extends Controller
 
         $doctorId = auth()->id();
 
-        // Verify user exists
         $user = User::find($userId);
         if (!$user) {
             return response()->json(['error' => 'User not found'], 404);
         }
 
-        // Verify current user is a doctor
         if (auth()->user()->role !== 'doctor') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
@@ -127,5 +118,40 @@ class ChatController extends Controller
         ]);
 
         return response()->json($message, 201);
+    }
+
+    /**
+     * NEW: Edit an existing chat message cleanly with role protection
+     */
+    public function editChatMessage(Request $request, $id)
+    {
+        $request->validate([
+            'message' => 'required|string|max:1000',
+        ]);
+
+        // Find the record using your ChatMessage Model
+        $message = ChatMessage::find($id);
+
+        if (!$message) {
+            return response()->json(['error' => 'Message not found'], 404);
+        }
+
+        $user = auth()->user();
+
+        if ($user->role === 'doctor') {
+            if ($message->doctor_id !== $user->id || $message->sender_type !== 'doctor') {
+                return response()->json(['error' => 'Unauthorized action'], 403);
+            }
+        } else {
+            if ($message->user_id !== $user->id || $message->sender_type !== 'client') {
+                return response()->json(['error' => 'Unauthorized action'], 403);
+            }
+        }
+
+        // Commit update changes 
+        $message->message = $request->message;
+        $message->save();
+
+        return response()->json($message, 200);
     }
 }
