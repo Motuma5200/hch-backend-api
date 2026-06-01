@@ -134,4 +134,17 @@ public function register(Request $request)
             'message' => 'Login successful',
         ]);
     }
+    public function destroyAccount(Request $request)
+    {
+        $user = $request->user();
+
+        $user->tokens()->delete();
+
+    
+        $user->delete();
+
+        return response()->json([
+            'message' => 'Your account configuration database nodes have been permanently erased.'
+        ], 200);
+    }
 }

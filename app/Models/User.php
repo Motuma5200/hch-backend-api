@@ -11,7 +11,7 @@ use App\Models\ChatMessage;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable,HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens;
 
     /**
      * The attributes that are mass assignable.
@@ -29,6 +29,7 @@ class User extends Authenticatable
         'specialization',
         'id_document',
         'hospital_id',
+        'doctor_profile_json', // <-- Added to allow database inserts of doctor configuration blocks
     ];
 
     /**
@@ -52,6 +53,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             // 'password' => 'hashed',   ← comment out or remove this line
             'approved' => 'boolean',
+            'doctor_profile_json' => 'array', // <-- Automatically parses JSON data to a readable PHP array
         ];
     }
 

@@ -1,48 +1,34 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from llama_cpp import Llama
+import httpx  
 import uvicorn
 
 app = FastAPI(title="HealthCheckHub Medical AI API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],           # ← Change to your frontend URL in production!
+    allow_origins=["*"],           
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-print("Loading BioMistral-7B (medical fine-tuned model)... This may take 30-90 seconds.")
+HF_ACCESS_TOKEN = "h" 
 
-# ── CHANGE THIS PATH to where you actually saved the file ──
-MODEL_PATH = "BioMistral-7B.Q4_K_M.gguf"          # ← most common name
-# MODEL_PATH = "./BioMistral-7B/BioMistral-7B-GGUF.Q4_K_M.gguf"   # if you used a subfolder
-# MODEL_PATH = "C:/Users/YourName/Downloads/BioMistral-7B-GGUF.Q4_K_M.gguf"  # Windows example
-
-llm = Llama(
-    model_path=MODEL_PATH,
-    n_ctx=4096,           # 4096 is usually fine; reduce to 2048/3072 if you get OOM
-    n_threads=6,          # adjust to ≈ your CPU cores - 2
-    n_gpu_layers=0,       # 0 = CPU only • change to -1 or 30-40 if you have GPU + enough VRAM
-    verbose=False
-)
-
-print("BioMistral-7B medical model loaded! Ready for health-related questions.")
+print("FastAPI configured to route queries through Hugging Face Cloud APIs!")
 
 class Query(BaseModel):
     question: str
 
 @app.get("/")
 def home():
-    return {"message": "Medical AI API (BioMistral-7B) is running! POST to /generate"}
+    return {"message": "Medical AI API (Hugging Face Cloud BioMistral) is running! POST to /generate"}
 
 @app.post("/generate")
-def generate_response(query: Query):
+async def generate_response(query: Query):
     user_question = query.question.strip()
 
-    # ── BioMistral / Mistral-Instruct style system prompt ──
     system_prompt = (
         "You are a helpful, kind and experienced doctor specialized in preventive medicine. "
         "Answer in clear, simple language. Use bullet points when giving advice. "
@@ -52,25 +38,57 @@ def generate_response(query: Query):
         "Please consult a qualified healthcare professional.'"
     )
 
-    # Mistral-Instruct / BioMistral chat template
-    prompt = f"""[INST] {system_prompt}
+    # Payload structured in standard ChatCompletions format
+    payload = {
+        "model": "BioMistral/BioMistral-7B-GGUF",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_question}
+        ],
+        "max_tokens": 512,
+        "temperature": 0.65,
+        "top_p": 0.9
+    }
 
-{user_question} [/INST]"""
-
-    output = llm(
-        prompt,
-        max_tokens=512,
-        temperature=0.65,       # slightly lower than before → more focused answers
-        top_p=0.9,
-        repeat_penalty=1.1,
-        stop=["</s>", "[INST]", "[/INST]"],
-        echo=False
-    )
-
-    response_text = output["choices"][0]["text"].strip()
-
-    return {"response": response_text}
+    # Hugging Face cloud validation router
+    API_URL = "https://router.huggingface.co/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {HF_ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            response = await client.post(API_URL, json=payload, headers=headers)
+            
+            # Handle 503 errors (when Hugging Face is spinning up/warming up the model cache)
+            if response.status_code == 503:
+                return {
+                    "response": (
+                        "The cloud medical model is currently waking up on Hugging Face's serverless cluster. "
+                        "Please re-submit your question in 15 to 20 seconds!\n\n"
+                        "This is general health information only – not a medical diagnosis or treatment. "
+                        "Please consult a qualified healthcare professional."
+                    )
+                }
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code, 
+                    detail=f"Hugging Face server returned an error: {response.text}"
+                )
+                
+            data = response.json()
+            response_text = data["choices"][0]["message"]["content"].strip()
+            return {"response": response_text}
+            
+        except httpx.RequestError as exc:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"An error occurred while connecting to the AI cloud network: {exc}"
+            )
 
 if __name__ == "__main__":
-    print("Starting server on http://127.0.0.1:8080")
-    uvicorn.run(app, host="127.0.0.1", port=8080)
+    # Serves on 0.0.0.0 so your mobile phone hotspot configuration can view it seamlessly
+    print("Starting server on http://0.0.0.0:8080")
+    uvicorn.run(app, host="0.0.0.0", port=8080)
