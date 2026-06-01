@@ -10,6 +10,7 @@ class AdminController extends Controller
 {
     /**
      * Approve a pending user (admin only)
+     * Handles standard users as well as specialized doctor onboarding JSON profiles.
      */
     public function approve(Request $request, $id)
     {
@@ -24,12 +25,30 @@ class AdminController extends Controller
             return response()->json(['message' => 'User not found'], 404);
         }
 
-        $user->approved = true;
+        // 1. Process the approval status flag explicitly sent from the client dashboard
+        $user->approved = $request->input('approved', true);
+
+        // 2. Catch the doctor profile metrics payload block if attached
+        if ($request->has('doctor_profile_json')) {
+            $request->validate([
+                'doctor_profile_json' => 'required|array',
+                'doctor_profile_json.specialization' => 'required|string',
+                'doctor_profile_json.experienceYears' => 'required|integer',
+                'doctor_profile_json.videoFee' => 'required|numeric',
+            ]);
+
+            $user->doctor_profile_json = $request->input('doctor_profile_json');
+            
+            // Optional: If you also want to synchronize your legacy top-level database flat columns
+            $user->specialization = $request->input('doctor_profile_json.specialization');
+            $user->bio = $request->input('doctor_profile_json.bio');
+        }
+
         $user->save();
 
         return response()->json([
-            'message' => 'User approved',
-            'user' => $user->only('id','name','email','role','organisation','approved'),
+            'message' => 'User approved and profile deployed successfully.',
+            'user' => $user->only('id', 'name', 'email', 'role', 'organisation', 'approved', 'doctor_profile_json'),
         ]);
     }
 
@@ -104,7 +123,7 @@ class AdminController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $users = User::orderBy('id', 'desc')->get(['id', 'name', 'email', 'role', 'approved', 'organisation']);
+        $users = User::orderBy('id', 'desc')->get(['id', 'name', 'email', 'role', 'approved', 'organisation', 'doctor_profile_json']);
         return response()->json($users);
     }
 
