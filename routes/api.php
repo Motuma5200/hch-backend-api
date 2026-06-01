@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\ClientDoctorController;
 use App\Http\Controllers\Api\SecurityController; 
+use App\Http\Controllers\Api\ContentController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -29,6 +30,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/users/pending', [AdminController::class, 'pending']);
     Route::get('/admin/users', [AdminController::class, 'index']);
     Route::delete('/admin/users/{id}', [AdminController::class, 'destroy']);
+    Route::post('/content', [ContentController::class, 'store']);
+    Route::get('/content', [ContentController::class, 'index']);
     
     // Compatibility Admin Routes
     Route::get('/admin/pending-approvals', [AdminController::class, 'pending']);
@@ -81,6 +84,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/chat/messages/{doctorId}', [ChatController::class, 'sendChatMessage']);
     Route::post('/chat/doctor/messages/{userId}', [ChatController::class, 'sendDoctorMessage']);
     Route::get('/chat/clients', [ChatController::class, 'getClients']);
+    Route::put('/chat/messages/{id}', [ChatController::class, 'editChatMessage']);
 });
 
 // Doctor profile & advices
@@ -100,7 +104,6 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::put('/user/change-password', [SecurityController::class, 'changePassword']);
     
-    // CONNECTED: Your permanent account elimination system gateway endpoint
     Route::delete('/user/terminate-account', [AuthController::class, 'destroyAccount']);
 });
 
