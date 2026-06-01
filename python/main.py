@@ -14,7 +14,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-HF_ACCESS_TOKEN = "h" 
+# Your valid token is safe here
+HF_ACCESS_TOKEN = "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" 
 
 print("FastAPI configured to route queries through Hugging Face Cloud APIs!")
 
@@ -38,20 +39,22 @@ async def generate_response(query: Query):
         "Please consult a qualified healthcare professional.'"
     )
 
-    # Payload structured in standard ChatCompletions format
+    # Combine system prompt and user question manually for the standard text-generation endpoint
+    full_prompt = f"<s>[INST] {system_prompt}\n\nUser Question: {user_question} [/INST]"
+
     payload = {
-        "model": "BioMistral/BioMistral-7B-GGUF",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_question}
-        ],
-        "max_tokens": 512,
-        "temperature": 0.65,
-        "top_p": 0.9
+        "inputs": full_prompt,
+        "parameters": {
+            "max_new_tokens": 512,
+            "temperature": 0.65,
+            "top_p": 0.9,
+            "return_full_text": False
+        }
     }
 
-    # Hugging Face cloud validation router
-    API_URL = "https://router.huggingface.co/v1/chat/completions"
+    # CORRECT ENDPOINT: Points directly to the serverless model repository
+    API_URL = "https://api-inference.huggingface.co/models/BioMistral/BioMistral-7B"
+    
     headers = {
         "Authorization": f"Bearer {HF_ACCESS_TOKEN}",
         "Content-Type": "application/json"
@@ -61,7 +64,7 @@ async def generate_response(query: Query):
         try:
             response = await client.post(API_URL, json=payload, headers=headers)
             
-            # Handle 503 errors (when Hugging Face is spinning up/warming up the model cache)
+            # Handle 503 errors (Model warming up / loading into memory)
             if response.status_code == 503:
                 return {
                     "response": (
@@ -79,7 +82,13 @@ async def generate_response(query: Query):
                 )
                 
             data = response.json()
-            response_text = data["choices"][0]["message"]["content"].strip()
+            
+            # The standard Inference API returns a list containing a dict with 'generated_text'
+            if isinstance(data, list) and len(data) > 0:
+                response_text = data[0].get("generated_text", "").strip()
+            else:
+                response_text = "Error parsing response layout from Hugging Face."
+                
             return {"response": response_text}
             
         except httpx.RequestError as exc:
@@ -89,6 +98,5 @@ async def generate_response(query: Query):
             )
 
 if __name__ == "__main__":
-    # Serves on 0.0.0.0 so your mobile phone hotspot configuration can view it seamlessly
     print("Starting server on http://0.0.0.0:8080")
     uvicorn.run(app, host="0.0.0.0", port=8080)
