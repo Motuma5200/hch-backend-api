@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->text('description');
-            $table->string('image')->nullable(); // Stores the file path string
+            $table->longText('image')->nullable(); // Stores the file path string
             $table->string('videoUrl')->nullable(); // Matches your React frontend parameter name
             $table->string('category')->default('general');
             $table->text('detail')->nullable();

@@ -39,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/reject/{id}', [AdminController::class, 'reject']);
     Route::post('/admin/hospitals', [HospitalController::class, 'store']);
 });
+    Route::get('/content', [ContentController::class, 'index']);
 
 // Hospitals
 Route::get('/hospitals', [HospitalController::class, 'index']); 

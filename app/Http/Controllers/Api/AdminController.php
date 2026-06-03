@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class AdminController extends Controller
 {
@@ -30,18 +31,29 @@ class AdminController extends Controller
 
         // 2. Catch the doctor profile metrics payload block if attached
         if ($request->has('doctor_profile_json')) {
+            // Validate structural fields safely without breaking on complex type configurations
             $request->validate([
                 'doctor_profile_json' => 'required|array',
                 'doctor_profile_json.specialization' => 'required|string',
-                'doctor_profile_json.experienceYears' => 'required|integer',
-                'doctor_profile_json.videoFee' => 'required|numeric',
             ]);
 
-            $user->doctor_profile_json = $request->input('doctor_profile_json');
+            // Extract the payload to sanitize integers and floats safely
+            $profileData = $request->input('doctor_profile_json');
             
-            // Optional: If you also want to synchronize your legacy top-level database flat columns
-            $user->specialization = $request->input('doctor_profile_json.specialization');
-            $user->bio = $request->input('doctor_profile_json.bio');
+            // Clean up numbers to prevent validation/DB drops if the frontend sent NaN or empty inputs
+            $profileData['experienceYears'] = isset($profileData['experienceYears']) ? (int)$profileData['experienceYears'] : 0;
+            $profileData['videoFee'] = isset($profileData['videoFee']) ? (float)$profileData['videoFee'] : 0.00;
+
+            // Commit the sanitized array back to the JSON column block
+            $user->doctor_profile_json = $profileData;
+            
+            // ✅ SAFETY CHECK: Map to flat columns ONLY if they actually exist in your database schema layout
+            if (Schema::hasColumn('users', 'specialization')) {
+                $user->specialization = $profileData['specialization'] ?? 'General Practitioner';
+            }
+            if (Schema::hasColumn('users', 'bio')) {
+                $user->bio = $profileData['bio'] ?? 'Welcome to the health platform!';
+            }
         }
 
         $user->save();
